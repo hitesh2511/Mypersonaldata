@@ -2,7 +2,7 @@ name: Fetch NSE Indices Daily
 
 on:
   schedule:
-    - cron: '30 10 * * 1-5'  # 4 PM IST, Mon–Fri
+    - cron:  '30 10 * * 1-5'   # 4:00 PM IST, Mon–Fri
   workflow_dispatch:
 
 permissions:
@@ -11,11 +11,13 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-
     steps:
-      # 1️⃣ Get a fresh clone
+      # 1️⃣ Checkout the full history so we can push
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          persist-credentials: true
 
       # 2️⃣ Set up Python
       - name: Set up Python
@@ -23,28 +25,32 @@ jobs:
         with:
           python-version: '3.x'
 
-      # 3️⃣ Install our dependencies
+      # 3️⃣ Install dependencies
       - name: Install dependencies
         run: pip install nsepython pandas
 
-      # 4️⃣ Run the downloader, writing into data/all_indices.csv
+      # 4️⃣ Remove old CSV (guarantees a clean slate)
+      - name: Remove existing CSV
+        run: rm -f data/all_indices.csv
+
+      # 5️⃣ Run your downloader
       - name: Run downloader
         run: |
           mkdir -p data
           python nifty_downloader.py --out data/all_indices.csv
 
-      # 5️⃣ Configure Git for the commit
-      - name: Configure Git
-        run: |
-          git config --local user.name "github-actions[bot]"
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-
-      # 6️⃣ Commit & push the updated CSV
+      # 6️⃣ Commit & push _only_ if the file changed
       - name: Commit & push CSV
         run: |
+          git config user.name  "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
+          # Stage your CSV
           git add data/all_indices.csv
-          git commit -m "chore: update NSE data" || echo "No changes to commit"
-          git push
-        env:
-          # ensures the action can push
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+          # Only commit if there’s a diff
+          git diff --cached --exit-code \
+            || git commit -m "chore: update NSE data"
+
+          # Push back to main
+          git push origin HEAD:main
