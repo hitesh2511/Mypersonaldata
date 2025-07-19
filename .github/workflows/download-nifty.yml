@@ -24,10 +24,8 @@ jobs:
       - name: Run downloader
         run: python nifty_downloader.py
 
-      # ← NEW STEP: upload any CSV files matching the pattern
       - name: Upload CSV artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: all-indices-csv
-          path: |
-            all_indices_*.csv
+          path: all_indices_*.csv
