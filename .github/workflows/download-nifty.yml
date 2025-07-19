@@ -1,25 +1,33 @@
-name: Download NIFTY data
+name: Fetch NSE Indices Daily
 
 on:
   schedule:
-    - cron: '*/5 * * * *'   # Every weekday at 3:40 PM IST
+    - cron: '10 10 * * 1-5'
   workflow_dispatch:
 
 jobs:
-  fetch-nifty:
+  fetch:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.x'
 
       - name: Install dependencies
-        run: pip install requests pandas
+        run: |
+          pip install nsepython pandas
 
-      - name: Run script
+      - name: Run downloader
         run: python nifty_downloader.py
+
+      # ← NEW STEP: upload any CSV files matching the pattern
+      - name: Upload CSV artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: all-indices-csv
+          path: |
+            all_indices_*.csv
