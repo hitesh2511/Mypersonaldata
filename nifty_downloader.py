@@ -1,68 +1,73 @@
+#!/usr/bin/env python3
 import requests
+import pandas as pd
+from datetime import datetime
 import time
-import json
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Accept": "application/json",
-    "Referer": "https://www.nseindia.com/",
-    "Connection": "keep-alive"
-}
-
-BASE_URL = "https://www.nseindia.com/api/equity-stockIndices?index="
-
+# Configuration
+API_BASE = "https://www.nseindia.com/api/equity-stockIndices?index="
 INDEXES = [
     "NIFTY 50",
     "NIFTY NEXT 50",
+    "NIFTY MIDCAP 150",
     "NIFTY MIDCAP 50",
     "NIFTY MIDCAP 100",
-    "NIFTY MIDCAP 150",
     "NIFTY TOTAL MARKET"
 ]
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/115.0.0.0 Safari/537.36"
+    ),
+    "Accept": "application/json, text/javascript, */*; q=0.01",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://www.nseindia.com/market-data/live-equity-market",
+    "Origin": "https://www.nseindia.com",
+    "Connection": "keep-alive",
+}
 
-session = requests.Session()
-session.headers.update(HEADERS)
-
-def get_index_data(index_name, retries=3):
-    encoded_index = index_name.replace(" ", "%20")
-    url = BASE_URL + encoded_index
-
+def get_index_df(name: str, session: requests.Session, retries=3) -> pd.DataFrame:
+    url = API_BASE + name.replace(" ", "%20")
     for attempt in range(1, retries + 1):
         try:
-            print(f"➡️ Fetching {index_name}… (attempt {attempt})")
-            response = session.get(url, timeout=10)
-            response.raise_for_status()
-
-            data = response.json()
-            print(f"✅ Success: {index_name} ({len(data['data'])} stocks)\n")
-            return data['data']
-        except requests.exceptions.RequestException as e:
-            print(f"  ❌ [{attempt}] Request error: {e}")
-            time.sleep(3)  # Wait before retry
-
-    print(f"   ⚠️ Skipping {index_name} (no valid JSON)\n")
-    return []
+            resp = session.get(url, timeout=10)
+            resp.raise_for_status()
+            data = resp.json().get("data", [])
+            df = pd.DataFrame(data)
+            df.insert(0, "Index", name)
+            return df
+        except Exception as e:
+            print(f"  ❌ [{attempt}] Failed {name}: {e}")
+            time.sleep(2)
+    print(f"⚠️ Skipping {name}")
+    return pd.DataFrame()
 
 def main():
-    all_data = {}
+    session = requests.Session()
+    session.headers.update(HEADERS)
+    session.get("https://www.nseindia.com", timeout=5)
+    session.get("https://www.nseindia.com/market-data/live-equity-market", timeout=5)
+    time.sleep(2)
 
-    # First warm-up request to set NSE cookies
-    try:
-        session.get("https://www.nseindia.com", timeout=10)
-    except Exception as e:
-        print(f"❌ Error during warm-up requests: {e}")
+    all_frames = []
+    today = datetime.now().strftime("%Y-%m-%d")
 
-    for index in INDEXES:
-        data = get_index_data(index)
-        all_data[index] = data
-        time.sleep(1)  # avoid hammering server
+    for idx in INDEXES:
+        print(f"➡️ Fetching {idx}…")
+        df = get_index_df(idx, session)
+        if not df.empty:
+            all_frames.append(df)
+        time.sleep(2)
 
-    # Save data to file
-    with open("nifty_data.json", "w") as f:
-        json.dump(all_data, f, indent=2)
-
-    print("✅ All data saved to 'nifty_data.json'")
+    if all_frames:
+        combined = pd.concat(all_frames, ignore_index=True)
+        combined.drop_duplicates(subset="symbol", inplace=True)
+        filename = f"all_indices_{today}.csv"
+        combined.to_csv(filename, index=False)
+        print(f"✅ Saved {filename}")
+    else:
+        print("❌ No data fetched for any index.")
 
 if __name__ == "__main__":
     main()
