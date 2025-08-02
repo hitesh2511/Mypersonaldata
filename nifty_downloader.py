@@ -41,8 +41,8 @@ def fetch_all_indices():
 
     # Warm-up requests to generate cookies
     try:
-        session.get("https://www.nseindia.com", timeout=10)
-        session.get("https://www.nseindia.com/market-data/live-equity-market", timeout=10)
+        session.get("https://www.nseindia.com", timeout=30)
+        session.get("https://www.nseindia.com/market-data/live-equity-market", timeout=30)
     except Exception as e:
         print(f"Error warming up session: {e}")
         return
