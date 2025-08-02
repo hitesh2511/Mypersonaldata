@@ -1,26 +1,48 @@
-    steps:
-      - uses: actions/checkout@v3
+name: Fetch NSE Indices Daily
 
+on:
+  schedule:
+    # 4:00 PM IST = 10:30 UTC, Mon–Fri
+    - cron: '30 10 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) Checkout the repo
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2) Set up Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
+      # 3) Install required packages
       - name: Install dependencies
         run: pip install nsepython pandas
 
-      - name: Run downloader
+      # 4) Run your downloader script
+      - name: Run NSE downloader
         run: python nifty_downloader.py
 
+      # 5) Configure Git author identity
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      # 6) Commit & push the CSV
       - name: Commit & push CSV
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git add data/*.csv
-          git commit -m "chore: update NSE indices" || echo "No changes"
+          git commit -m "chore: update NSE indices" || echo "No changes to commit"
           git push
