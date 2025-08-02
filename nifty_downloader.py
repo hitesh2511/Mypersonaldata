@@ -1,7 +1,8 @@
+#!/usr/bin/env python3
 import requests
 import pandas as pd
-from datetime import datetime
 import time
+from datetime import datetime
 
 INDEXES = {
     "NIFTY 50":           "NIFTY%2050",
@@ -30,17 +31,20 @@ HEADERS = {
 def safe_get_json(session, url, retries=3, backoff=2):
     """GET url up to `retries` times, return parsed JSON or None."""
     for attempt in range(1, retries+1):
-        resp = session.get(url, timeout=10)
-        # 1) Must be HTTP 200
-        if resp.status_code != 200:
-            print(f"  ❌ [{attempt}] {url} → HTTP {resp.status_code}")
-        # 2) Content-Type should be JSON
-        ct = resp.headers.get("Content-Type","")
+        try:
+            resp = session.get(url, timeout=10)
+            resp.raise_for_status()
+        except Exception as e:
+            print(f"  ❌ [{attempt}] GET {url} failed: {e}")
+            time.sleep(backoff)
+            continue
+
+        # Validate JSON
+        ct = resp.headers.get("Content-Type", "")
         if "application/json" not in ct:
             snippet = resp.text.strip().replace("\n"," ")[:200]
             print(f"  ❌ [{attempt}] Not JSON (Content-Type: {ct}). Snippet: {snippet!r}")
         else:
-            # 3) Try parsing JSON
             try:
                 return resp.json()
             except Exception as e:
@@ -48,13 +52,28 @@ def safe_get_json(session, url, retries=3, backoff=2):
         time.sleep(backoff)
     return None
 
+def warm_up(session, retries=3):
+    """Warm up cookies by hitting the homepage and live-equity-market page."""
+    for page in ["https://www.nseindia.com",
+                 "https://www.nseindia.com/market-data/live-equity-market"]:
+        for attempt in range(1, retries+1):
+            try:
+                resp = session.get(page, timeout=10)
+                resp.raise_for_status()
+                print(f"✅ Warm-up OK: {page}")
+                break
+            except Exception as e:
+                print(f"  ⚠️ Warm-up attempt {attempt} failed for {page}: {e}")
+                time.sleep(2)
+        else:
+            print(f"⚠️ All warm-up attempts failed for {page}, continuing anyway.")
+
 def fetch_all_indices():
     session = requests.Session()
     session.headers.update(HEADERS)
 
-    # Warm-up to get cookies
-    session.get("https://www.nseindia.com", timeout=10)
-    session.get("https://www.nseindia.com/market-data/live-equity-market", timeout=10)
+    print(f"[{datetime.now().isoformat()}] Starting warm-up…")
+    warm_up(session)
     time.sleep(2)
 
     today = datetime.now().strftime("%Y-%m-%d")
@@ -84,6 +103,8 @@ def fetch_all_indices():
 
     result = pd.concat(combined, ignore_index=True)
     result.drop_duplicates(subset="symbol", inplace=True)
+
+    os.makedirs("data", exist_ok=True)
     filename = "data/all_indices.csv"
     result.to_csv(filename, index=False)
     print(f"✅ Combined data saved as {filename}")
