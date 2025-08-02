@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os               # ← Added this import
 import requests
 import pandas as pd
 import time
@@ -54,8 +55,10 @@ def safe_get_json(session, url, retries=3, backoff=2):
 
 def warm_up(session, retries=3):
     """Warm up cookies by hitting the homepage and live-equity-market page."""
-    for page in ["https://www.nseindia.com",
-                 "https://www.nseindia.com/market-data/live-equity-market"]:
+    for page in [
+        "https://www.nseindia.com",
+        "https://www.nseindia.com/market-data/live-equity-market"
+    ]:
         for attempt in range(1, retries+1):
             try:
                 resp = session.get(page, timeout=10)
@@ -104,6 +107,7 @@ def fetch_all_indices():
     result = pd.concat(combined, ignore_index=True)
     result.drop_duplicates(subset="symbol", inplace=True)
 
+    # ensure the output folder exists
     os.makedirs("data", exist_ok=True)
     filename = "data/all_indices.csv"
     result.to_csv(filename, index=False)
