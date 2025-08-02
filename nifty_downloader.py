@@ -5,11 +5,11 @@ from datetime import datetime
 import time
 
 INDEXES = {
-    "NIFTY 50":           "NIFTY%2050",
-    "NIFTY NEXT 50":      "NIFTY%20NEXT%2050",
-    "NIFTY MIDCAP 150":   "NIFTY%20MIDCAP%20150",
-    "NIFTY MIDCAP 50":    "NIFTY%20MIDCAP%2050",
-    "NIFTY MIDCAP 100":   "NIFTY%20MIDCAP%20100",
+    "NIFTY 50": "NIFTY%2050",
+    "NIFTY NEXT 50": "NIFTY%20NEXT%2050",
+    "NIFTY MIDCAP 150": "NIFTY%20MIDCAP%20150",
+    "NIFTY MIDCAP 50": "NIFTY%20MIDCAP%2050",
+    "NIFTY MIDCAP 100": "NIFTY%20MIDCAP%20100",
     "NIFTY TOTAL MARKET": "NIFTY%20TOTAL%20MARKET"
 }
 
@@ -31,37 +31,29 @@ HEADERS = {
 def safe_get_json(session, url, retries=3, backoff=2):
     """GET url up to `retries` times, return parsed JSON or None."""
     for attempt in range(1, retries+1):
-        try:
-            resp = session.get(url, timeout=10)
-        except Exception as e:
-            print(f"  ❌ [{attempt}] Request error: {e}")
-            time.sleep(backoff)
-            continue
-
+        resp = session.get(url, timeout=10)
+        # 1) Must be HTTP 200
         if resp.status_code != 200:
             print(f"  ❌ [{attempt}] {url} → HTTP {resp.status_code}")
-            time.sleep(backoff)
-            continue
-
-        ct = resp.headers.get("Content-Type", "")
+        # 2) Content-Type should be JSON
+        ct = resp.headers.get("Content-Type","")
         if "application/json" not in ct:
-            snippet = resp.text.strip().replace("\n", " ")[:200]
+            snippet = resp.text.strip().replace("\n"," ")[:200]
             print(f"  ❌ [{attempt}] Not JSON (Content-Type: {ct}). Snippet: {snippet!r}")
-            time.sleep(backoff)
-            continue
-
-        try:
-            return resp.json()
-        except Exception as e:
-            print(f"  ❌ [{attempt}] JSON parse error: {e}")
-            time.sleep(backoff)
+        else:
+            # 3) Try parsing JSON
+            try:
+                return resp.json()
+            except Exception as e:
+                print(f"  ❌ [{attempt}] JSON parse error: {e}")
+        time.sleep(backoff)
     return None
 
 def fetch_all_indices():
     session = requests.Session()
     session.headers.update(HEADERS)
 
-    # Warm-up to get cookies and session data
+    # Warm-up to get cookies
     session.get("https://www.nseindia.com", timeout=10)
     session.get("https://www.nseindia.com/market-data/live-equity-market", timeout=10)
     time.sleep(2)
@@ -94,16 +86,14 @@ def fetch_all_indices():
     result.drop_duplicates(subset="symbol", inplace=True)
 
     os.makedirs("data", exist_ok=True)
-
     filename = "data/all_indices.csv"
     old_filename = "data/old_data.csv"
 
-    # Move previous all_indices.csv to old_data.csv if it exists
+    # Move existing all_indices.csv to old_data.csv before saving new file
     if os.path.exists(filename):
         os.replace(filename, old_filename)
         print(f"♻️ Moved previous data to {old_filename}")
 
-    # Save new data
     result.to_csv(filename, index=False)
     print(f"✅ Combined data saved as {filename}")
 
