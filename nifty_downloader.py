@@ -31,22 +31,30 @@ HEADERS = {
 def safe_get_json(session, url, retries=3, backoff=2):
     """GET url up to `retries` times, return parsed JSON or None."""
     for attempt in range(1, retries+1):
-        resp = session.get(url, timeout=10)
-        # 1) Must be HTTP 200
+        try:
+            resp = session.get(url, timeout=10)
+        except Exception as e:
+            print(f"  ❌ [{attempt}] Request error: {e}")
+            time.sleep(backoff)
+            continue
+
         if resp.status_code != 200:
             print(f"  ❌ [{attempt}] {url} → HTTP {resp.status_code}")
-        # 2) Content-Type should be JSON
+            time.sleep(backoff)
+            continue
+
         ct = resp.headers.get("Content-Type","")
         if "application/json" not in ct:
             snippet = resp.text.strip().replace("\n"," ")[:200]
             print(f"  ❌ [{attempt}] Not JSON (Content-Type: {ct}). Snippet: {snippet!r}")
-        else:
-            # 3) Try parsing JSON
-            try:
-                return resp.json()
-            except Exception as e:
-                print(f"  ❌ [{attempt}] JSON parse error: {e}")
-        time.sleep(backoff)
+            time.sleep(backoff)
+            continue
+
+        try:
+            return resp.json()
+        except Exception as e:
+            print(f"  ❌ [{attempt}] JSON parse error: {e}")
+            time.sleep(backoff)
     return None
 
 def fetch_all_indices():
@@ -54,8 +62,12 @@ def fetch_all_indices():
     session.headers.update(HEADERS)
 
     # Warm-up to get cookies
-    session.get("https://www.nseindia.com", timeout=10)
-    session.get("https://www.nseindia.com/market-data/live-equity-market", timeout=10)
+    try:
+        session.get("https://www.nseindia.com", timeout=10)
+        session.get("https://www.nseindia.com/market-data/live-equity-market", timeout=10)
+    except Exception as e:
+        print(f"❌ Error during warm-up requests: {e}")
+        # Optionally: return or continue, based on your needs
     time.sleep(2)
 
     combined = []
@@ -89,7 +101,7 @@ def fetch_all_indices():
     filename = "data/all_indices.csv"
     old_filename = "data/old_data.csv"
 
-    # Move existing all_indices.csv to old_data.csv before saving new file
+    # Add old_data.csv saving logic minimally
     if os.path.exists(filename):
         os.replace(filename, old_filename)
         print(f"♻️ Moved previous data to {old_filename}")
