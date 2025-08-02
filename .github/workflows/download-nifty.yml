@@ -2,7 +2,7 @@ name: Fetch NSE Indices Daily
 
 on:
   schedule:
-    - cron:  '30 10 * * 1-5'   # 4:00 PM IST, Mon–Fri
+    - cron: '30 10 * * 1-5' # 4:00 PM IST, Mon–Fri
   workflow_dispatch:
 
 permissions:
@@ -12,7 +12,7 @@ jobs:
   fetch:
     runs-on: ubuntu-latest
     steps:
-      # 1️⃣ Checkout the full history so we can push
+      # 1️⃣ Checkout the repository with full history to push commits
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
@@ -27,30 +27,27 @@ jobs:
 
       # 3️⃣ Install dependencies
       - name: Install dependencies
-        run: pip install nsepython pandas
+        run: pip install nsepython pandas requests
 
-      # 4️⃣ Remove old CSV (guarantees a clean slate)
-      - name: Remove existing CSV
-        run: rm -f data/all_indices.csv
+      # 4️⃣ (Optional) Clean data folder before run
+      - name: Clean data folder
+        run: rm -f data/all_indices.csv data/old_data.csv || true
 
-      # 5️⃣ Run your downloader
+      # 5️⃣ Run the downloader script
       - name: Run downloader
         run: |
           mkdir -p data
-          python nifty_downloader.py --out data/all_indices.csv
+          python nifty_downloader.py
 
-      # 6️⃣ Commit & push _only_ if the file changed
+      # 6️⃣ Commit & push changes if any CSV updated
       - name: Commit & push CSV
         run: |
           git config user.name  "${{ github.actor }}"
           git config user.email "${{ github.actor }}@users.noreply.github.com"
 
-          # Stage your CSV
-          git add data/all_indices.csv
+          git add data/all_indices.csv data/old_data.csv
 
-          # Only commit if there’s a diff
           git diff --cached --exit-code \
-            || git commit -m "chore: update NSE data"
+            || git commit -m "chore: update NSE data files"
 
-          # Push back to main
           git push origin HEAD:main
