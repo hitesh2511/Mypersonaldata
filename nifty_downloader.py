@@ -76,7 +76,7 @@ def fetch_all_indices():
 
     result = pd.concat(combined, ignore_index=True)
     result.drop_duplicates(subset="symbol", inplace=True)
-    filename = f"data/all_indices.csv"
+    filename = "data/all_indices.csv"
     result.to_csv(filename, index=False)
     print(f"✅ Combined data saved as {filename}")
 
