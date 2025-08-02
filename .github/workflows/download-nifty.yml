@@ -1,14 +1,16 @@
-name: Scrape NSE Indices
+name: Fetch NSE Indices Daily
 
 on:
   schedule:
     - cron: '30 10 * * 1-5'  # 4:00 PM IST Mon–Fri
   workflow_dispatch:
 
-jobs:
-  scrape:
-    runs-on: ubuntu-latest
+permissions:
+  contents: write
 
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
@@ -17,21 +19,13 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Install Python deps & Chromium
-        run: |
-          # install the Python libraries
-          pip install pandas selenium
-          # install Chromium & ChromeDriver on Ubuntu runner
-          sudo apt-get update
-          sudo apt-get install -y chromium-browser chromium-chromedriver
+      - name: Install dependencies
+        run: pip install nsepython pandas
 
-      - name: Run Selenium scraper
-        # ensure ChromeDriver is on the path
-        env:
-          PATH: /usr/lib/chromium-browser/:/usr/lib/chromium-browser/chromedriver:$PATH
+      - name: Run downloader
         run: python nifty_downloader.py
 
-      - name: Commit & push results
+      - name: Commit & push CSV
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
