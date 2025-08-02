@@ -12,20 +12,13 @@ INDEXES = {
     "NIFTY TOTAL MARKET": "NIFTY%20TOTAL%20MARKET"
 }
 
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/115.0.0.0 Safari/537.36"
-    ),
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+    "Referer": "https://www.nseindia.com/",
     "Accept-Language": "en-US,en;q=0.9",
     "Accept-Encoding": "gzip, deflate, br",
-    "Accept": "application/json, text/plain, */*",
-    "Referer": "https://www.nseindia.com/",
-    "Connection": "keep-alive",
-    "X-Requested-With": "XMLHttpRequest",
-    "Host": "www.nseindia.com",
-    "Origin": "https://www.nseindia.com"
+    "Accept": "application/json",
+    "Connection": "keep-alive"
 }
 
 def safe_get_json(session, url, retries=3, backoff=2):
@@ -44,7 +37,7 @@ def safe_get_json(session, url, retries=3, backoff=2):
 
 def fetch_all_indices():
     session = requests.Session()
-    session.headers.update(HEADERS)
+    session.headers.update(headers)
 
     # Warm-up requests to generate cookies
     try:
@@ -83,7 +76,7 @@ def fetch_all_indices():
 
     result = pd.concat(combined, ignore_index=True)
     result.drop_duplicates(subset="symbol", inplace=True)
-    filename = f"all_indices_{today}.csv"
+    filename = f"all_indices.csv"
     result.to_csv(filename, index=False)
     print(f"✅ Combined data saved as {filename}")
 
