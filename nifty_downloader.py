@@ -12,19 +12,20 @@ INDEXES = {
     "NIFTY TOTAL MARKET": "NIFTY%20TOTAL%20MARKET"
 }
 
-HEADERS = {
+headers = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/115.0.0.0 Safari/537.36"
     ),
-    "Accept": "application/json, text/javascript, */*; q=0.01",
     "Accept-Language": "en-US,en;q=0.9",
-    "Referer": "https://www.nseindia.com/market-data/live-equity-market",
-    "Origin": "https://www.nseindia.com",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Accept": "application/json, text/plain, */*",
+    "Referer": "https://www.nseindia.com/",
     "Connection": "keep-alive",
-    "Sec-Fetch-Mode": "cors",
-    "Sec-Fetch-Site": "same-origin",
+    "X-Requested-With": "XMLHttpRequest",
+    "Host": "www.nseindia.com",
+    "Origin": "https://www.nseindia.com"
 }
 
 def safe_get_json(session, url, retries=3, backoff=2):
