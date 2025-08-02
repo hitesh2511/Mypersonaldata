@@ -1,16 +1,3 @@
-name: Fetch NSE Indices Daily
-
-on:
-  schedule:
-    - cron: '30 10 * * 1-5'  # 4:00 PM IST Mon–Fri
-  workflow_dispatch:
-
-permissions:
-  contents: write
-
-jobs:
-  fetch:
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
@@ -24,6 +11,11 @@ jobs:
 
       - name: Run downloader
         run: python nifty_downloader.py
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Commit & push CSV
         env:
