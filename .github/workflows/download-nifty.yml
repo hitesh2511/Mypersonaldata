@@ -1,8 +1,8 @@
-name: Fetch NSE Indices Daily
+name: Fetch NSE Indices Daily with Puppeteer
 
 on:
   schedule:
-    - cron:  '30 10 * * 1-5'   # 4:00 PM IST, Mon–Fri
+    - cron: '30 2 * * 1-5'  # 8:00 AM IST Mon-Fri (2:30 AM UTC)
   workflow_dispatch:
 
 permissions:
@@ -11,46 +11,40 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
+
     steps:
-      # 1️⃣ Checkout the full history so we can push
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
           persist-credentials: true
 
-      # 2️⃣ Set up Python
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      # 2️⃣ Setup Node.js environment
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          python-version: '3.x'
+          node-version: '20'
 
-      # 3️⃣ Install dependencies
+      # 3️⃣ Install Puppeteer dependency
       - name: Install dependencies
-        run: pip install nsepython pandas
+        run: npm install puppeteer
 
-      # 4️⃣ Remove old CSV (guarantees a clean slate)
-      - name: Remove existing CSV
-        run: rm -f data/all_indices.csv
+      # 4️⃣ Run the Puppeteer scraper script
+      - name: Run NSE Puppeteer scraper
+        run: node your_puppeteer_script.js
 
-      # 5️⃣ Run your downloader
-      - name: Run downloader
-        run: |
-          mkdir -p data
-          python nifty_downloader.py --out data/all_indices.csv
-
-      # 6️⃣ Commit & push _only_ if the file changed
+      # 5️⃣ Commit & push updated CSVs if changed
       - name: Commit & push CSV
         run: |
           git config user.name  "${{ github.actor }}"
           git config user.email "${{ github.actor }}@users.noreply.github.com"
 
-          # Stage your CSV
-          git add data/all_indices.csv
+          # Add all CSV files under data folder
+          git add data/*.csv || true
 
-          # Only commit if there’s a diff
+          # Commit if there are changes
           git diff --cached --exit-code \
-            || git commit -m "chore: update NSE data"
+            || git commit -m "chore: update NSE index data via Puppeteer"
 
-          # Push back to main
           git push origin HEAD:main
