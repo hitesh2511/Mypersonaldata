@@ -32,7 +32,7 @@ jobs:
 
       # 4️⃣ Run the Puppeteer scraper script
       - name: Run NSE Puppeteer scraper
-        run: node your_puppeteer_script.js
+        run: node nse_puppeteer_scraper.js
 
       # 5️⃣ Commit & push updated CSVs if changed
       - name: Commit & push CSV
@@ -40,10 +40,8 @@ jobs:
           git config user.name  "${{ github.actor }}"
           git config user.email "${{ github.actor }}@users.noreply.github.com"
 
-          # Add all CSV files under data folder
           git add data/*.csv || true
 
-          # Commit if there are changes
           git diff --cached --exit-code \
             || git commit -m "chore: update NSE index data via Puppeteer"
 
