@@ -93,10 +93,16 @@ const INDEXES = {
   const dataDir = path.join(__dirname, 'data');
   if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
 
-  const outputFile = path.join(dataDir, 'all_indices.csv');
-  fs.writeFileSync(outputFile, csvContent);
+  const allIndicesFile = path.join(dataDir, 'all_indices.csv');
+  const oldIndicesFile = path.join(dataDir, 'old_indices.csv');
 
-  console.log(`✅ Combined CSV saved to ${outputFile}`);
+  if (fs.existsSync(allIndicesFile)) {
+    fs.renameSync(allIndicesFile, oldIndicesFile);
+    console.log(`♻️ Renamed previous data file to ${oldIndicesFile}`);
+  }
+
+  fs.writeFileSync(allIndicesFile, csvContent);
+  console.log(`✅ Combined CSV saved to ${allIndicesFile}`);
 
   await browser.close();
 })();
