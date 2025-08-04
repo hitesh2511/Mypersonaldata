@@ -1,4 +1,4 @@
-name: Fetch NSE Indices Daily with Puppeteer
+name: Fetch NSE Indices Daily with Puppeteer Stealth
 
 on:
   schedule:
@@ -13,29 +13,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
           persist-credentials: true
 
-      # 2️⃣ Setup Node.js environment
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20'
 
-      # 3️⃣ Install Puppeteer dependency
-      - name: Install dependencies
-        run: npm install puppeteer
+      - name: Install Puppeteer Extra and Stealth plugin with puppeteer
+        run: npm install puppeteer puppeteer-extra puppeteer-extra-plugin-stealth
 
-      # 4️⃣ Run the Puppeteer scraper script
-      - name: Run NSE Puppeteer scraper
-        run: node nse_puppeteer_scraper.js
+      - name: Run NSE Puppeteer stealth scraper
+        run: node nse_puppeteer_stealth_scraper.js
 
-      # 5️⃣ Commit & push updated CSVs if changed
-      - name: Commit & push CSV
+      - name: Commit & push CSV if changed
         run: |
           git config user.name  "${{ github.actor }}"
           git config user.email "${{ github.actor }}@users.noreply.github.com"
@@ -43,6 +38,6 @@ jobs:
           git add data/*.csv || true
 
           git diff --cached --exit-code \
-            || git commit -m "chore: update NSE index data via Puppeteer"
+            || git commit -m "chore: update NSE index data via Puppeteer stealth"
 
           git push origin HEAD:main
