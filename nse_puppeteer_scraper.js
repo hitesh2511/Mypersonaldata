@@ -1,8 +1,11 @@
-// Save this file as nse_puppeteer_scraper.js in your repository root
+// Save this file as nse_puppeteer_stealth_scraper.js in your repository root
 
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
 const path = require('path');
+
+puppeteer.use(StealthPlugin());
 
 const INDEXES = {
   "NIFTY 50": "NIFTY%2050",
@@ -14,8 +17,21 @@ const INDEXES = {
 };
 
 (async () => {
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--single-process',
+      '--no-zygote',
+      '--disable-blink-features=AutomationControlled'
+    ],
+  });
   const page = await browser.newPage();
+
+  await page.setUserAgent(
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  );
 
   await page.goto('https://www.nseindia.com/market-data/live-equity-market', { waitUntil: 'networkidle2' });
 
