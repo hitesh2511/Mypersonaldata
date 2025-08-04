@@ -1,3 +1,5 @@
+// Save this file as your_puppeteer_script.js in your repository root
+
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
@@ -12,50 +14,77 @@ const INDEXES = {
 };
 
 (async () => {
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
   const page = await browser.newPage();
 
-  await page.goto('https://www.nseindia.com/market-data/live-equity-market', {waitUntil: 'networkidle2'});
+  // Open NSE main market data page to initialize cookies and JS environment
+  await page.goto('https://www.nseindia.com/market-data/live-equity-market', { waitUntil: 'networkidle2' });
 
   const combinedData = [];
 
   for (const [name, code] of Object.entries(INDEXES)) {
-    const url = `https://www.nseindia.com/api/equity-stockIndices?index=${code}`;
-    const response = await page.evaluate((url) =>
-      fetch(url, {
-        headers: {
-          'Accept': 'application/json, text/javascript, */*; q=0.01',
-          'Referer': 'https://www.nseindia.com/market-data/live-equity-market',
-          'User-Agent': navigator.userAgent
-        }
-      }).then(res => res.json()), url);
+    try {
+      const url = `https://www.nseindia.com/api/equity-stockIndices?index=${code}`;
 
-    if (!response.data) {
-      console.log(`⚠️ No data for ${name}`);
-      continue;
+      // Fetch the JSON data using page.evaluate to keep cookies and headers intact
+      const response = await page.evaluate(async (url) => {
+        const res = await fetch(url, {
+          headers: {
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'Referer': 'https://www.nseindia.com/market-data/live-equity-market',
+            'User-Agent': navigator.userAgent,
+          },
+          credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return await res.json();
+      }, url);
+
+      if (!response || !response.data || response.data.length === 0) {
+        console.warn(`⚠️ No data returned for ${name}`);
+        continue;
+      }
+
+      for (const item of response.data) {
+        item.Index = name;
+        combinedData.push(item);
+      }
+
+      console.log(`✅ Fetched data for ${name}`);
+      await new Promise(r => setTimeout(r, 2000)); // polite delay between requests
+
+    } catch (error) {
+      console.error(`❌ Error fetching ${name}:`, error.message);
     }
-
-    response.data.forEach(item => {
-      item.Index = name;
-      combinedData.push(item);
-    });
-
-    console.log(`Fetched ${name}`);
   }
 
-  // Convert combined data to CSV
-  const csvHeaders = Object.keys(combinedData[0]);
+  if (combinedData.length === 0) {
+    console.error("❌ No data fetched for any index. Exiting.");
+    await browser.close();
+    process.exit(1);
+  }
+
+  // Convert combinedData to CSV format
+  const headers = Object.keys(combinedData[0]);
   const csvRows = [
-    csvHeaders.join(','),
-    ...combinedData.map(row => csvHeaders.map(field => `"${(row[field] ?? '').toString().replace(/"/g, '""')}"`).join(','))
-  ].join('\n');
+    headers.join(','), // header row
+    ...combinedData.map(row => headers.map(field => {
+      let value = row[field] ?? '';
+      value = value.toString().replace(/"/g, '""'); // escape quotes
+      return `"${value}"`;
+    }).join(','))
+  ];
 
-  // Save CSV file
-  const outputPath = path.join('data', 'all_indices.csv');
-  fs.mkdirSync('data', { recursive: true });
-  fs.writeFileSync(outputPath, csvRows);
+  const csvContent = csvRows.join('\n');
 
-  console.log(`✅ Combined data saved as ${outputPath}`);
+  const dataDir = path.join(__dirname, 'data');
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir);
+  }
+
+  const outputFile = path.join(dataDir, 'all_indices.csv');
+  fs.writeFileSync(outputFile, csvContent);
+  console.log(`✅ Combined CSV saved to ${outputFile}`);
 
   await browser.close();
 })();
