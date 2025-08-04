@@ -1,66 +1,61 @@
-import requests
-import pandas as pd
-import os
-import time
+const puppeteer = require('puppeteer');
+const fs = require('fs');
+const path = require('path');
 
-INDEXES = {
-    "NIFTY 50": "NIFTY%2050",
-    "NIFTY NEXT 50": "NIFTY%20NEXT%2050",
-    "NIFTY MIDCAP 150": "NIFTY%20MIDCAP%20150",
-    "NIFTY MIDCAP 50": "NIFTY%20MIDCAP%2050",
-    "NIFTY MIDCAP 100": "NIFTY%20MIDCAP%20100",
-    "NIFTY TOTAL MARKET": "NIFTY%20TOTAL%20MARKET"
-}
+const INDEXES = {
+  "NIFTY 50": "NIFTY%2050",
+  "NIFTY NEXT 50": "NIFTY%20NEXT%2050",
+  "NIFTY MIDCAP 150": "NIFTY%20MIDCAP%20150",
+  "NIFTY MIDCAP 50": "NIFTY%20MIDCAP%2050",
+  "NIFTY MIDCAP 100": "NIFTY%20MIDCAP%20100",
+  "NIFTY TOTAL MARKET": "NIFTY%20TOTAL%20MARKET"
+};
 
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/115.0.0.0 Safari/537.36"
-    ),
-    "Accept": "text/csv,application/csv"
-}
+(async () => {
+  const browser = await puppeteer.launch({ headless: true });
+  const page = await browser.newPage();
 
-def download_index_csv(index_name, code):
-    url = f"https://www.nseindia.com/api/download-index?index={code}"
-    s = requests.Session()
-    s.headers.update(HEADERS)
-    # fetch nseindia.com for cookies (required)
-    s.get("https://www.nseindia.com", timeout=10)
-    response = s.get(url, timeout=10)
-    response.raise_for_status()
-    filename = f"data/{index_name.replace(' ', '_')}.csv"
-    with open(filename, "wb") as f:
-        f.write(response.content)
-    print(f"Downloaded {index_name} to {filename}")
-    return filename
+  await page.goto('https://www.nseindia.com/market-data/live-equity-market', {waitUntil: 'networkidle2'});
 
-def main():
-    os.makedirs("data", exist_ok=True)
-    csv_files = []
-    for index, code in INDEXES.items():
-        try:
-            fname = download_index_csv(index, code)
-            csv_files.append(fname)
-        except Exception as e:
-            print(f"Failed to download {index}: {e}")
-        time.sleep(1)
+  const combinedData = [];
 
-    # Consolidate CSVs
-    dfs = []
-    for fname in csv_files:
-        df = pd.read_csv(fname)
-        df.insert(0, "Index", fname.split('/')[-1].replace('.csv', '').replace('_', ' '))
-        dfs.append(df)
-    if dfs:
-        result = pd.concat(dfs, ignore_index=True)
-        # Save as all_indices.csv, backup existing as old_data.csv if exists
-        all_file = "data/all_indices.csv"
-        old_file = "data/old_data.csv"
-        if os.path.exists(all_file):
-            os.replace(all_file, old_file)
-        result.to_csv(all_file, index=False)
-        print(f"Saved consolidated data to {all_file}")
+  for (const [name, code] of Object.entries(INDEXES)) {
+    const url = `https://www.nseindia.com/api/equity-stockIndices?index=${code}`;
+    const response = await page.evaluate((url) =>
+      fetch(url, {
+        headers: {
+          'Accept': 'application/json, text/javascript, */*; q=0.01',
+          'Referer': 'https://www.nseindia.com/market-data/live-equity-market',
+          'User-Agent': navigator.userAgent
+        }
+      }).then(res => res.json()), url);
 
-if __name__ == "__main__":
-    main()
+    if (!response.data) {
+      console.log(`⚠️ No data for ${name}`);
+      continue;
+    }
+
+    response.data.forEach(item => {
+      item.Index = name;
+      combinedData.push(item);
+    });
+
+    console.log(`Fetched ${name}`);
+  }
+
+  // Convert combined data to CSV
+  const csvHeaders = Object.keys(combinedData[0]);
+  const csvRows = [
+    csvHeaders.join(','),
+    ...combinedData.map(row => csvHeaders.map(field => `"${(row[field] ?? '').toString().replace(/"/g, '""')}"`).join(','))
+  ].join('\n');
+
+  // Save CSV file
+  const outputPath = path.join('data', 'all_indices.csv');
+  fs.mkdirSync('data', { recursive: true });
+  fs.writeFileSync(outputPath, csvRows);
+
+  console.log(`✅ Combined data saved as ${outputPath}`);
+
+  await browser.close();
+})();
