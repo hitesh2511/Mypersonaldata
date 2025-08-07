@@ -2,20 +2,24 @@ name: Run Indices Processing Script Daily at 5 PM IST
 
 on:
   schedule:
-    - cron: '30 11 * * *'  # runs at 11:30 UTC = 5 PM IST daily
-  workflow_dispatch:      # manual trigger support
+    - cron: '30 11 * * *'    # Daily at 11:30 UTC = 5 PM IST
+  workflow_dispatch:         # Enable manual trigger from UI
+
+permissions:
+  contents: write
 
 jobs:
   run-script:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository contents
+      - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          persist-credentials: true   # Important! Keep credentials for push
+          fetch-depth: 0          # Full history to enable commits
+          persist-credentials: true  # Needed to push commits
 
-      - name: Set up Python 3.10
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
@@ -25,14 +29,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas openpyxl
 
-      - name: Run the processing script
+      - name: Run indices processing script
         run: |
           python process_indices.py
 
-      - name: Commit and push output Excel file
+      - name: Commit & push filtered_output.xlsx if changed
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/filtered_output.xlsx
-          git diff --cached --quiet || git commit -m "Update filtered_output.xlsx via GitHub Actions"
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
+          git add data/filtered_output.xlsx || true
+
+          git diff --cached --exit-code \
+            || git commit -m "chore: update filtered_output.xlsx via GitHub Actions"
+
           git push origin HEAD:${{ github.ref_name }}
