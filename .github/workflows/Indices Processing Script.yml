@@ -3,7 +3,7 @@ name: Run Indices Processing Script Daily at 5 PM IST
 on:
   schedule:
     - cron: '30 11 * * *'  # Runs daily at 11:30 UTC = 5 PM IST
-
+  workflow_dispatch:
 jobs:
   run-script:
     runs-on: ubuntu-latest
