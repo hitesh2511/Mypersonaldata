@@ -1,0 +1,33 @@
+name: Run Indices Processing Script Daily at 5 PM IST
+
+on:
+  schedule:
+    - cron: '30 11 * * *'  # Runs daily at 11:30 UTC = 5 PM IST
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository contents
+      uses: actions/checkout@v3
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas openpyxl
+
+    - name: Run the processing script
+      run: |
+        python process_indices.py
+
+    - name: Upload generated Excel file as artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: filtered-output
+        path: output/filtered_output.xlsx  # Adjust path as per your script's output location
